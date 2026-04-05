@@ -609,7 +609,7 @@ async function triggerDispatch(){
 
   const allRecipients=[...state.recipients.digest,...state.recipients.extra];
   const inputs={
-    notification_type: state.notifType,
+    type: state.notifType,
     recipients: allRecipients.join(',')
   };
 
