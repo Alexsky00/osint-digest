@@ -38,12 +38,16 @@ GROQ_MODEL = "llama-3.1-8b-instant"   # Modèle gratuit, rapide, 14 400 req/jour
 
 SYSTEM_PROMPT = """Tu es un analyste OSINT senior spécialisé en veille stratégique.
 Règles strictes :
-1. Utilise uniquement les informations fournies dans le contexte de recherche
-2. Chaque point : 2 phrases max, factuel, zéro opinion ni spéculation
-3. Chaque point se termine par → [Source: NomMédia, JJ/MM/AAAA]
-4. Si une information est absente du contexte : "Non disponible dans les sources à cette heure."
-5. Format : liste numérotée. Aucune intro ni conclusion.
-6. N'invente jamais de source ni de fait."""
+1. Parmi toutes les informations fournies (web ET signaux X), sélectionne les PLUS NOTABLES du moment,
+   sans distinguer la provenance — un tweet pertinent vaut autant qu'un article si le fait est vérifiable.
+2. "Notable" = impact géopolitique, économique, social ou sectoriel significatif, ou rupture par rapport
+   au statu quo. Écarte les anecdotes, météo, culture, sport sauf exception majeure.
+3. Chaque point : 2 phrases max, factuel, zéro opinion ni spéculation.
+4. Chaque point se termine par → [Source: NomMédia ou @compte, JJ/MM/AAAA]
+5. Si plusieurs sources confirment un fait, cite la plus fiable (média > compte X).
+6. Si l'information est absente du contexte : "Non disponible dans les sources à cette heure."
+7. Format : liste numérotée. Aucune intro ni conclusion.
+8. N'invente jamais de source ni de fait."""
 
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -86,14 +90,14 @@ def tavily_search(query: str, domains: list[str] = None) -> str:
     1 crédit par appel (basic search).
     """
     payload = {
-        "query":          query,
-        "search_depth":   "basic",
-        "max_results":    5,
-        "include_answer": False,
+        "query":               query,
+        "search_depth":        "basic",
+        "max_results":         8,        # plus de résultats = meilleure sélection
+        "include_answer":      False,
         "include_raw_content": False,
     }
     if domains:
-        payload["include_domains"] = domains[:10]  # max 10 domaines
+        payload["include_domains"] = domains[:15]
 
     data = json.dumps(payload).encode("utf-8")
     req  = urllib.request.Request(
@@ -106,7 +110,7 @@ def tavily_search(query: str, domains: list[str] = None) -> str:
         }
     )
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=25) as r:
             resp    = json.loads(r.read())
             results = resp.get("results", [])
             if not results:
@@ -115,31 +119,33 @@ def tavily_search(query: str, domains: list[str] = None) -> str:
             for item in results:
                 title   = item.get("title", "")
                 url     = item.get("url", "")
-                content = item.get("content", "")[:400]
+                snippet = item.get("content", "")[:500]   # plus de contexte par article
                 source  = url.split("/")[2] if url else "source inconnue"
-                lines.append(f"[{source}] {title} — {content}")
+                pub     = item.get("published_date", "")
+                date_tag = f" [{pub[:10]}]" if pub else ""
+                lines.append(f"[{source}{date_tag}] {title} — {snippet}")
             return "\n\n".join(lines)
     except Exception as e:
         return f"Erreur Tavily : {e}"
 
 
 def build_tavily_query(section: dict, sources: dict, lang: str) -> tuple[str, list[str]]:
-    """Construit la requête Tavily et la liste de domaines autorisés."""
+    """
+    Construit la requête Tavily : large et ouverte pour capturer les faits les plus notables,
+    sans sur-spécifier — Groq fera la sélection éditoriale.
+    """
     src_list = active_sources(sources, section["sources_key"])
     domains  = [s["url"] for s in src_list]
 
-    topic_fr = section.get("title_fr", section["id"])
-    topic_es = section.get("title_es", section["id"])
-
-    # Requête en anglais pour Tavily (meilleurs résultats), puis on résumera dans la langue cible
+    # Requêtes larges et récentes — on veut le bruit complet, Groq trie
     queries = {
-        "international": "latest international news geopolitics today",
-        "espagne":       "últimas noticias España política economía hoy",
-        "france":        "actualités France politique économie aujourd'hui",
-        "finances":      "markets finance IBEX CAC40 economy news today",
-        "rail":          "railway rail transport business news today",
+        "international": "breaking international news today geopolitics conflict diplomacy",
+        "espagne":       "noticias más importantes España hoy política economía sociedad",
+        "france":        "actualités majeures France aujourd'hui politique économie société",
+        "finances":      "financial markets major news today stocks bonds commodities forex central banks",
+        "rail":          "railway rail transport major news today operators tenders new lines incidents",
     }
-    query = queries.get(section["id"], f"latest news {topic_fr} today")
+    query = queries.get(section["id"], f"major news {section.get('title_fr', section['id'])} today")
     return query, domains
 
 
@@ -154,20 +160,20 @@ def groq_summarize(context: str, section: dict, lang: str, x_signals: str = "") 
     title  = section[f"title_{lang}"]
     prompt_key = f"prompt_{lang}"
 
-    # On construit le prompt utilisateur
-    user_msg = f"""Voici des informations récentes sur le thème "{title}" issues de sources vérifiées :
+    # Prompt unifié : web + X sur un pied d'égalité, sélection éditoriale par Groq
+    x_block = f"""\n--- SIGNAUX X/TWITTER ---\n{x_signals}""" if x_signals else ""
 
---- CONTEXTE ---
-{context}
-"""
-    if x_signals:
-        user_msg += f"""
---- SIGNAUX X/TWITTER (contexte additionnel) ---
-{x_signals}
-"""
-    user_msg += f"""
+    user_msg = f"""Voici l'ensemble des informations disponibles sur le thème "{title}" pour les dernières 24h.
+Elles proviennent de sources web ET de comptes X — traite-les sans distinction de provenance.
+
+--- SOURCES WEB ---
+{context}{x_block}
+
 ---
-En te basant UNIQUEMENT sur ces informations, {section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources ci-dessus')}
+MISSION : Parmi toutes ces informations, sélectionne les {n} faits les plus notables et significatifs
+du moment pour ce thème. Privilégie les événements à fort impact, les ruptures, les décisions majeures.
+Ignore les doublons (même fait, plusieurs sources = cite la plus fiable).
+{section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources et signaux ci-dessus')}
 """
 
     payload = json.dumps({
@@ -241,16 +247,20 @@ def fetch_nitter(handle, max_t=2):
 
 
 def fetch_x_signals(x_accounts, section_id):
+    """
+    Collecte les tweets récents. On prend plus de comptes et plus de tweets
+    pour donner à Groq plus de matière à sélectionner.
+    """
     handles = active_handles(x_accounts, section_id)
     if not handles: return ""
     signals = []
-    for h in handles[:4]:
-        for t in fetch_nitter(h, 2):
+    for h in handles[:6]:           # jusqu'à 6 comptes par section
+        for t in fetch_nitter(h, 3):  # jusqu'à 3 tweets par compte
             clean = re.sub(r"\s+", " ", re.sub(r"http\S+", "", t)).strip()
-            if len(clean) > 30:
-                signals.append(f"@{h}: {clean[:200]}")
+            if len(clean) > 40:
+                signals.append(f"@{h}: {clean[:250]}")
         time.sleep(0.3)
-    return "\n".join(signals[:6])
+    return "\n".join(signals[:12])  # jusqu'à 12 signaux au total
 
 
 # ── FETCH DIGEST ──────────────────────────────────────────────────────────────
