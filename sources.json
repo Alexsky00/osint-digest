@@ -1,0 +1,51 @@
+{
+  "_comment": "Gestion des sources OSINT vérifiées. Mets 'active': false pour désactiver une source sans la supprimer.",
+
+  "international": [
+    { "name": "Reuters",          "url": "reuters.com",          "lang": "EN", "active": true },
+    { "name": "Associated Press", "url": "apnews.com",           "lang": "EN", "active": true },
+    { "name": "BBC World",        "url": "bbc.com/news/world",   "lang": "EN", "active": true },
+    { "name": "Al Jazeera",       "url": "aljazeera.com",        "lang": "EN", "active": true },
+    { "name": "Le Monde",         "url": "lemonde.fr",           "lang": "FR", "active": true },
+    { "name": "El País",          "url": "elpais.com",           "lang": "ES", "active": true },
+    { "name": "DW",               "url": "dw.com",               "lang": "EN", "active": true }
+  ],
+
+  "espagne": [
+    { "name": "El País",          "url": "elpais.com",           "lang": "ES", "active": true },
+    { "name": "El Mundo",         "url": "elmundo.es",           "lang": "ES", "active": true },
+    { "name": "La Vanguardia",    "url": "lavanguardia.com",     "lang": "ES", "active": true },
+    { "name": "El Confidencial",  "url": "elconfidencial.com",   "lang": "ES", "active": true },
+    { "name": "Expansion",        "url": "expansion.com",        "lang": "ES", "active": true },
+    { "name": "RTVE",             "url": "rtve.es",              "lang": "ES", "active": true }
+  ],
+
+  "france": [
+    { "name": "Le Monde",         "url": "lemonde.fr",           "lang": "FR", "active": true },
+    { "name": "Le Figaro",        "url": "lefigaro.fr",          "lang": "FR", "active": true },
+    { "name": "Les Echos",        "url": "lesechos.fr",          "lang": "FR", "active": true },
+    { "name": "France Info",      "url": "francetvinfo.fr",      "lang": "FR", "active": true },
+    { "name": "Libération",       "url": "liberation.fr",        "lang": "FR", "active": true },
+    { "name": "L'Express",        "url": "lexpress.fr",          "lang": "FR", "active": true }
+  ],
+
+  "finances": [
+    { "name": "Bloomberg",        "url": "bloomberg.com",        "lang": "EN", "active": true },
+    { "name": "Financial Times",  "url": "ft.com",               "lang": "EN", "active": true },
+    { "name": "Reuters Finance",  "url": "reuters.com/finance",  "lang": "EN", "active": true },
+    { "name": "Les Echos",        "url": "lesechos.fr",          "lang": "FR", "active": true },
+    { "name": "Expansion",        "url": "expansion.com",        "lang": "ES", "active": true },
+    { "name": "Cinco Días",       "url": "cincodias.elpais.com", "lang": "ES", "active": true },
+    { "name": "MarketWatch",      "url": "marketwatch.com",      "lang": "EN", "active": true }
+  ],
+
+  "rail": [
+    { "name": "Railway Gazette",  "url": "railwaygazette.com",   "lang": "EN", "active": true },
+    { "name": "International Railway Journal", "url": "railjournal.com", "lang": "EN", "active": true },
+    { "name": "Vie du Rail",      "url": "laviedurail.com",      "lang": "FR", "active": true },
+    { "name": "Movilidad.eu",     "url": "movilidad.eu",         "lang": "ES", "active": true },
+    { "name": "El Confidencial",  "url": "elconfidencial.com",   "lang": "ES", "active": true },
+    { "name": "La Tribune",       "url": "latribune.fr",         "lang": "FR", "active": true },
+    { "name": "Ferrovie.it",      "url": "ferrovie.it",          "lang": "IT", "active": false }
+  ]
+}
