@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSINT Digest — Mission Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #07090f;
+  --bg2:     #0c0f1a;
+  --bg3:     #111626;
+  --card:    #0f1422;
+  --border:  #1c2540;
+  --border2: #243058;
+  --acc:     #00d4ff;
+  --acc2:    #7c3aed;
+  --green:   #00e676;
+  --red:     #ff3d57;
+  --amber:   #ffb300;
+  --text:    #cdd6f4;
+  --muted:   #4a5580;
+  --mono:    'Space Mono', monospace;
+  --display: 'Barlow Condensed', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;min-height:100vh;overflow-x:hidden}
+
+/* grid bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
+
+/* ── HEADER ── */
+header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(7,9,15,.92);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;height:58px;
+}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-satellite{font-size:24px;filter:drop-shadow(0 0 8px var(--acc))}
+.logo-text{font-family:var(--display);font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;text-transform:uppercase}
+.logo-version{font-size:9px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:20px}
+.live-indicator{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--green);letter-spacing:1px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#clock{font-family:var(--display);font-size:18px;font-weight:700;color:var(--acc);letter-spacing:2px}
+
+/* ── LAYOUT ── */
+.main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:24px 20px}
+
+/* ── STAT STRIP ── */
+.stat-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc-color,var(--acc))}
+.stat-val{font-family:var(--display);font-size:28px;font-weight:800;color:#fff;line-height:1}
+.stat-label{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px}
+
+/* ── NOTIFICATION PANEL ── */
+.notif-panel{
+  background:var(--card);border:1px solid var(--border2);border-radius:12px;
+  padding:22px 26px;margin-bottom:24px;
+  box-shadow:0 0 40px rgba(0,212,255,.04);
+}
+.notif-title{font-family:var(--display);font-size:20px;font-weight:800;color:#fff;letter-spacing:1px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.notif-title span{color:var(--acc)}
+.notif-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.notif-col label{display:block;font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+
+.recipients-box{
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;min-height:72px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;
+}
+.recipient-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);
+  color:var(--acc);border-radius:4px;padding:3px 8px;font-size:11px;
+}
+.recipient-tag.extra{background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.3);color:#a78bfa}
+.recipient-tag button{background:none;border:none;color:inherit;cursor:pointer;font-size:13px;opacity:.6;line-height:1;padding:0}
+.recipient-tag button:hover{opacity:1}
+
+.add-recipient-row{display:flex;gap:8px;margin-top:10px}
+.add-recipient-row input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none}
+.add-recipient-row input:focus{border-color:var(--acc)}
+
+.notif-type-selector{display:flex;flex-direction:column;gap:8px}
+.type-option{
+  display:flex;align-items:flex-start;gap:10px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;cursor:pointer;transition:border-color .2s;
+}
+.type-option:hover,.type-option.selected{border-color:var(--acc);background:rgba(0,212,255,.04)}
+.type-option input[type=radio]{display:none}
+.type-radio{width:14px;height:14px;border-radius:50%;border:2px solid var(--muted);flex-shrink:0;margin-top:1px;transition:all .2s;position:relative}
+.type-option.selected .type-radio{border-color:var(--acc);background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.type-name{font-weight:700;color:#fff;margin-bottom:2px;font-family:var(--display);font-size:14px;letter-spacing:.5px}
+.type-desc{color:var(--muted);font-size:10px;line-height:1.5}
+
+/* Alert config */
+.alert-config{
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;margin-top:12px;display:none;
+}
+.alert-config.show{display:block}
+.alert-config label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px}
+.alert-config input,.alert-config textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none;margin-bottom:10px;
+}
+.alert-config input:focus,.alert-config textarea:focus{border-color:var(--acc)}
+.alert-config textarea{resize:vertical;min-height:60px}
+
+.send-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;margin-top:16px;padding:13px;
+  background:linear-gradient(135deg,var(--acc2),#4f46e5);
+  color:#fff;border:none;border-radius:8px;
+  font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:1px;
+  cursor:pointer;transition:all .2s;text-transform:uppercase;
+}
+.send-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(124,58,237,.4)}
+.send-btn:active{transform:translateY(0)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* dispatch info */
+.dispatch-info{
+  background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);
+  border-radius:6px;padding:10px 14px;margin-top:12px;
+  font-size:11px;color:var(--green);line-height:1.6;display:none;
+}
+
+/* ── GITHUB ACTIONS TRIGGER ── */
+.gh-config{
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;margin-top:14px;
+}
+.gh-config label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px}
+.gh-config input{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none;margin-bottom:8px;
+}
+.gh-config input:focus{border-color:var(--acc)}
+.gh-note{font-size:10px;color:var(--muted);line-height:1.6}
+.gh-note a{color:var(--acc);text-decoration:none}
+.gh-note a:hover{text-decoration:underline}
+
+/* ── TABS ── */
+.tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{
+  padding:9px 18px;font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;
+  cursor:pointer;letter-spacing:.5px;transition:all .2s;margin-bottom:-1px;text-transform:uppercase;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.panel{display:none;animation:fadeUp .2s ease}
+.panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:14px;transition:border-color .2s}
+.card:hover{border-color:var(--border2)}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-title{font-family:var(--display);font-size:16px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+
+/* toggle */
+.toggle{position:relative;width:38px;height:21px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:#1e2540;border-radius:21px;transition:.2s;border:1px solid var(--border)}
+.tog-sl::before{content:'';position:absolute;width:15px;height:15px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:.2s}
+input:checked+.tog-sl{background:rgba(0,230,118,.15);border-color:var(--green)}
+input:checked+.tog-sl::before{transform:translateX(17px);background:var(--green);box-shadow:0 0 6px var(--green)}
+
+/* badge */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.b-on {background:rgba(0,230,118,.12);color:var(--green);border:1px solid rgba(0,230,118,.25)}
+.b-off{background:rgba(255,61,87,.1);color:var(--red);border:1px solid rgba(255,61,87,.2)}
+.b-acc{background:rgba(0,212,255,.1);color:var(--acc);border:1px solid rgba(0,212,255,.2)}
+
+/* inputs */
+input[type=text],input[type=number],textarea,select{
+  background:var(--bg2);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none;transition:border-color .2s;width:100%;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--acc)}
+textarea{resize:vertical;line-height:1.6}
+.flabel{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
+.field{margin-bottom:12px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 72px;gap:8px;align-items:end}
+
+/* btn */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;border:none;transition:all .18s;letter-spacing:.3px;text-transform:uppercase}
+.btn-p{background:var(--acc);color:#000}
+.btn-p:hover{background:#33ddff;transform:translateY(-1px)}
+.btn-d{background:rgba(255,61,87,.12);color:var(--red);border:1px solid rgba(255,61,87,.25)}
+.btn-d:hover{background:rgba(255,61,87,.22)}
+.btn-g{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)}
+.btn-g:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.btn-gr{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.25)}
+.btn-gr:hover{background:rgba(0,230,118,.2)}
+.btn-sm{padding:4px 10px;font-size:10px}
+
+/* table */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;padding:5px 10px;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.tbl td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(255,255,255,.015)}
+
+/* handle pills */
+.hlist{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.hpill{display:inline-flex;align-items:center;gap:4px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);color:var(--acc);border-radius:4px;padding:3px 8px;font-size:10px;font-weight:700}
+.hpill.off{background:rgba(74,85,128,.08);border-color:rgba(74,85,128,.2);color:var(--muted)}
+.hpill button{background:none;border:none;cursor:pointer;color:inherit;opacity:.55;font-size:12px;line-height:1;padding:0}
+.hpill button:hover{opacity:1}
+
+/* expand */
+.expand-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;font-family:var(--mono);display:flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.5px}
+.expand-btn:hover{color:var(--text)}
+.sec-body{display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+.sec-body.open{display:block}
+
+/* modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;width:min(720px,95vw);max-height:88vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-h{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-family:var(--display);font-size:17px;font-weight:800;color:#fff;letter-spacing:1px}
+.modal-b{padding:20px 22px;overflow-y:auto;flex:1}
+.modal-f{padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+pre.jout{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:10px;line-height:1.6;overflow-x:auto;color:#86efac;white-space:pre-wrap;max-height:300px;overflow-y:auto;transition:border-color .3s}
+pre.jout.copied{border-color:var(--green)}
+
+/* section divider */
+.section-divider{display:flex;align-items:center;gap:12px;margin:20px 0 14px}
+.section-divider span{font-family:var(--display);font-size:13px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase;white-space:nowrap}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* toast */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:300;
+  background:#0f1422;border:1px solid var(--green);border-radius:8px;
+  padding:12px 18px;font-size:12px;color:var(--green);
+  transform:translateY(60px);opacity:0;transition:all .3s;pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,230,118,.2);
+}
+#toast.show{transform:translateY(0);opacity:1}
+
+@media(max-width:640px){
+  .stat-strip{grid-template-columns:1fr 1fr}
+  .notif-grid{grid-template-columns:1fr}
+  .fg2,.fg3{grid-template-columns:1fr}
+  header{padding:0 14px}
+  .main{padding:16px 12px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-satellite">🛰️</span>
+    <div>
+      <div class="logo-text">OSINT Digest</div>
+      <div class="logo-version">Mission Control · v3</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-indicator"><span class="live-dot"></span>LIVE</div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- STATS -->
+  <div class="stat-strip">
+    <div class="stat" style="--acc-color:var(--acc)"><div class="stat-val" id="s-sections">0</div><div class="stat-label">Sections actives</div></div>
+    <div class="stat" style="--acc-color:var(--green)"><div class="stat-val" id="s-sources">0</div><div class="stat-label">Sources actives</div></div>
+    <div class="stat" style="--acc-color:#06b6d4"><div class="stat-val" id="s-x">0</div><div class="stat-label">Comptes X</div></div>
+    <div class="stat" style="--acc-color:var(--amber)"><div class="stat-val" id="s-recipients">0</div><div class="stat-label">Destinataires</div></div>
+    <div class="stat" style="--acc-color:var(--acc2)"><div class="stat-val">2×</div><div class="stat-label">6h40 · 20h40</div></div>
+  </div>
+
+  <!-- ══ NOTIFICATION PANEL ══ -->
+  <div class="notif-panel">
+    <div class="notif-title">📡 <span>Envoyer une notification</span></div>
+
+    <div class="notif-grid">
+
+      <!-- COL LEFT : DESTINATAIRES -->
+      <div>
+        <div class="section-divider"><span>Destinataires</span></div>
+
+        <label class="flabel">Destinataires permanents du digest</label>
+        <div class="recipients-box" id="digest-recipients"></div>
+        <div class="add-recipient-row" style="margin-top:8px">
+          <input type="text" id="new-digest-email" placeholder="email@exemple.com" onkeydown="if(event.key==='Enter')addDigestRecipient()">
+          <button class="btn btn-p btn-sm" onclick="addDigestRecipient()">＋</button>
+        </div>
+
+        <div style="margin-top:16px">
+          <label class="flabel">Destinataires supplémentaires pour cette notification uniquement</label>
+          <div class="recipients-box" id="extra-recipients"></div>
+          <div class="add-recipient-row" style="margin-top:8px">
+            <input type="text" id="new-extra-email" placeholder="extra@exemple.com" onkeydown="if(event.key==='Enter')addExtraRecipient()">
+            <button class="btn btn-sm" style="background:rgba(124,58,237,.2);color:#a78bfa;border:1px solid rgba(124,58,237,.3);" onclick="addExtraRecipient()">＋</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- COL RIGHT : TYPE + ENVOI -->
+      <div>
+        <div class="section-divider"><span>Type d'envoi</span></div>
+        <div class="notif-type-selector">
+          <div class="type-option selected" onclick="selectType('digest',this)">
+            <div class="type-radio"></div>
+            <div>
+              <div class="type-name">📰 Digest complet</div>
+              <div class="type-desc">Génère et envoie le digest OSINT complet (FR + ES) comme à 6h40/20h40. Durée : 3–5 min.</div>
+            </div>
+          </div>
+          <div class="type-option" onclick="selectType('alert',this)">
+            <div class="type-radio"></div>
+            <div>
+              <div class="type-name">⚡ Alerte rapide</div>
+              <div class="type-desc">Envoie un email d'alerte court avec sujet et message personnalisés. Instantané.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert-config" id="alert-config">
+          <label>Sujet de l'alerte</label>
+          <input type="text" id="alert-subject" placeholder="⚡ ALERTE OSINT — Titre de l'alerte">
+          <label>Message (FR)</label>
+          <textarea id="alert-body-fr" rows="3" placeholder="Contenu de l'alerte en français…"></textarea>
+          <label>Message (ES)</label>
+          <textarea id="alert-body-es" rows="3" placeholder="Contenido de la alerta en español…"></textarea>
+        </div>
+
+        <!-- GitHub Actions config -->
+        <div class="gh-config">
+          <label>🔑 GitHub Token (Personal Access Token)</label>
+          <input type="text" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          <label>Dépôt GitHub (owner/repo)</label>
+          <input type="text" id="gh-repo" placeholder="monusername/osint-digest">
+          <p class="gh-note">
+            Le bouton déclenche le workflow GitHub Actions via l'API GitHub.<br>
+            Token requis : <strong>repo + workflow</strong> scope.<br>
+            <a href="https://github.com/settings/tokens" target="_blank">→ Créer un token sur github.com/settings/tokens</a>
+          </p>
+        </div>
+
+        <div class="dispatch-info" id="dispatch-info"></div>
+
+        <button class="send-btn" id="send-btn" onclick="triggerDispatch()">
+          <span>⚡</span> <span id="send-label">Envoyer maintenant</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CONFIG TABS ══ -->
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('sections',this)">📋 Sections</button>
+    <button class="tab" onclick="switchTab('sources',this)">📰 Sources</button>
+    <button class="tab" onclick="switchTab('xaccounts',this)">𝕏 Comptes X</button>
+  </div>
+
+  <div id="panel-sections" class="panel active"></div>
+  <div id="panel-sources"  class="panel"></div>
+  <div id="panel-xaccounts" class="panel"></div>
+
+  <!-- EXPORT -->
+  <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border)">
+    <button class="btn btn-p" onclick="openExport()">⬇ Exporter les JSON</button>
+    <button class="btn btn-g" onclick="resetAll()">↺ Réinitialiser</button>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="modal-h">
+      <span class="modal-title">⬇ Exporter les fichiers JSON</span>
+      <button class="btn btn-g btn-sm" onclick="closeExport()">✕</button>
+    </div>
+    <div class="modal-b">
+      <p style="color:var(--muted);font-size:11px;margin-bottom:16px;line-height:1.7">
+        Copie chaque bloc dans le fichier correspondant de ton repo GitHub. Le prochain email prendra en compte les changements.
+      </p>
+      <div class="flabel">recipients.json</div>
+      <pre class="jout" id="exp-recipients"></pre>
+      <div class="flabel" style="margin-top:14px">sources.json</div>
+      <pre class="jout" id="exp-sources"></pre>
+      <div class="flabel" style="margin-top:14px">sections.json</div>
+      <pre class="jout" id="exp-sections"></pre>
+      <div class="flabel" style="margin-top:14px">x_accounts.json</div>
+      <pre class="jout" id="exp-x"></pre>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-g btn-sm" onclick="copyJSON('exp-recipients','recipients.json')">📋 recipients.json</button>
+      <button class="btn btn-g btn-sm" onclick="copyJSON('exp-sources','sources.json')">📋 sources.json</button>
+      <button class="btn btn-g btn-sm" onclick="copyJSON('exp-sections','sections.json')">📋 sections.json</button>
+      <button class="btn btn-g btn-sm" onclick="copyJSON('exp-x','x_accounts.json')">📋 x_accounts.json</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let state = {
+  recipients: {
+    digest: ["email1@gmail.com","email2@gmail.com"],
+    extra: []
+  },
+  sources: {
+    international:[
+      {name:"Reuters",url:"reuters.com",lang:"EN",active:true},
+      {name:"Associated Press",url:"apnews.com",lang:"EN",active:true},
+      {name:"BBC World",url:"bbc.com/news/world",lang:"EN",active:true},
+      {name:"Al Jazeera",url:"aljazeera.com",lang:"EN",active:true},
+      {name:"Le Monde",url:"lemonde.fr",lang:"FR",active:true},
+      {name:"El País",url:"elpais.com",lang:"ES",active:true},
+      {name:"DW",url:"dw.com",lang:"EN",active:true}
+    ],
+    espagne:[
+      {name:"El País",url:"elpais.com",lang:"ES",active:true},
+      {name:"El Mundo",url:"elmundo.es",lang:"ES",active:true},
+      {name:"La Vanguardia",url:"lavanguardia.com",lang:"ES",active:true},
+      {name:"El Confidencial",url:"elconfidencial.com",lang:"ES",active:true},
+      {name:"Expansion",url:"expansion.com",lang:"ES",active:true},
+      {name:"RTVE",url:"rtve.es",lang:"ES",active:true}
+    ],
+    france:[
+      {name:"Le Monde",url:"lemonde.fr",lang:"FR",active:true},
+      {name:"Le Figaro",url:"lefigaro.fr",lang:"FR",active:true},
+      {name:"Les Echos",url:"lesechos.fr",lang:"FR",active:true},
+      {name:"France Info",url:"francetvinfo.fr",lang:"FR",active:true},
+      {name:"Libération",url:"liberation.fr",lang:"FR",active:true}
+    ],
+    finances:[
+      {name:"Bloomberg",url:"bloomberg.com",lang:"EN",active:true},
+      {name:"Financial Times",url:"ft.com",lang:"EN",active:true},
+      {name:"Reuters Finance",url:"reuters.com/finance",lang:"EN",active:true},
+      {name:"Les Echos",url:"lesechos.fr",lang:"FR",active:true},
+      {name:"Expansion",url:"expansion.com",lang:"ES",active:true},
+      {name:"Cinco Días",url:"cincodias.elpais.com",lang:"ES",active:true}
+    ],
+    rail:[
+      {name:"Railway Gazette",url:"railwaygazette.com",lang:"EN",active:true},
+      {name:"Int. Railway Journal",url:"railjournal.com",lang:"EN",active:true},
+      {name:"Vie du Rail",url:"laviedurail.com",lang:"FR",active:true},
+      {name:"Movilidad.eu",url:"movilidad.eu",lang:"ES",active:true},
+      {name:"La Tribune",url:"latribune.fr",lang:"FR",active:true}
+    ]
+  },
+  sections: {sections:[
+    {id:"international",active:true,emoji:"🌍",title_fr:"International",title_es:"Internacional",sources_key:"international",items:3,
+     prompt_fr:"Quelles sont les {items} informations internationales les plus importantes des dernières 12 heures ? Géopolitique, conflits, diplomatie, crises. Sources : {sources}. Cite source et date.",
+     prompt_es:"¿Cuáles son las {items} noticias internacionales más importantes de las últimas 12 horas? Geopolítica, conflictos, diplomacia. Fuentes: {sources}. Cita fuente y fecha."},
+    {id:"espagne",active:true,emoji:"🇪🇸",title_fr:"Espagne",title_es:"España",sources_key:"espagne",items:3,
+     prompt_fr:"Quelles sont les {items} informations nationales espagnoles les plus importantes des dernières 12 heures ? Politique, économie, société. Sources : {sources}.",
+     prompt_es:"¿Cuáles son las {items} noticias nacionales españolas más importantes de las últimas 12 horas? Política, economía, sociedad. Fuentes: {sources}."},
+    {id:"france",active:true,emoji:"🇫🇷",title_fr:"France",title_es:"Francia",sources_key:"france",items:3,
+     prompt_fr:"Quelles sont les {items} informations nationales françaises les plus importantes des dernières 12 heures ? Sources : {sources}.",
+     prompt_es:"¿Cuáles son las {items} noticias nacionales francesas más importantes de las últimas 12 horas? Fuentes: {sources}."},
+    {id:"finances",active:true,emoji:"📈",title_fr:"Marchés financiers",title_es:"Mercados financieros",sources_key:"finances",items:3,
+     prompt_fr:"Quelles sont les {items} informations financières clés des dernières 12 heures ? IBEX, CAC40, S&P500, devises, BCE. Sources : {sources}. Inclue des chiffres.",
+     prompt_es:"¿Cuáles son las {items} informaciones financieras clave de las últimas 12 horas? IBEX, CAC40, S&P500, divisas, BCE. Fuentes: {sources}. Incluye cifras."},
+    {id:"rail",active:true,emoji:"🚆",title_fr:"Rail & Transport",title_es:"Ferroviario",sources_key:"rail",items:3,
+     prompt_fr:"Quelles sont les {items} informations business ferroviaires des dernières 24 heures ? Opérateurs, appels d'offres, nouvelles lignes. Sources : {sources}.",
+     prompt_es:"¿Cuáles son las {items} noticias de negocio ferroviario de las últimas 24 horas? Operadores, licitaciones, nuevas líneas. Fuentes: {sources}."}
+  ]},
+  x: {
+    international:[
+      {handle:"Reuters",name:"Reuters",active:true},{handle:"AP",name:"AP",active:true},
+      {handle:"BBCWorld",name:"BBC World",active:true},{handle:"AJEnglish",name:"Al Jazeera",active:true}
+    ],
+    espagne:[
+      {handle:"el_pais",name:"El País",active:true},{handle:"elmundoes",name:"El Mundo",active:true},
+      {handle:"LaVanguardia",name:"La Vanguardia",active:true},{handle:"RTVE",name:"RTVE",active:true}
+    ],
+    france:[
+      {handle:"lemondefr",name:"Le Monde",active:true},{handle:"le_Figaro",name:"Le Figaro",active:true},
+      {handle:"franceinfo",name:"France Info",active:true},{handle:"LesEchos",name:"Les Echos",active:true}
+    ],
+    finances:[
+      {handle:"Bloomberg",name:"Bloomberg",active:true},{handle:"FinancialTimes",name:"FT",active:true},
+      {handle:"markets",name:"Reuters Markets",active:true},{handle:"ECB",name:"BCE",active:true}
+    ],
+    rail:[
+      {handle:"railwaygazette",name:"Railway Gazette",active:true},{handle:"SNCF",name:"SNCF",active:true},
+      {handle:"Renfe",name:"Renfe",active:true},{handle:"DB_Bahn",name:"DB",active:true},{handle:"uic_rail",name:"UIC",active:true}
+    ]
+  },
+  notifType: 'digest'
+};
+
+// ══════════════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════════════
+function tick(){
+  const t=new Date().toLocaleTimeString('fr-FR',{timeZone:'Europe/Madrid',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('clock').textContent=t;
+}
+setInterval(tick,1000);tick();
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+function toast(msg,color='var(--green)'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.style.borderColor=color;el.style.color=color;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ══════════════════════════════════════════════════════
+// STATS
+// ══════════════════════════════════════════════════════
+function updateStats(){
+  document.getElementById('s-sections').textContent=state.sections.sections.filter(s=>s.active).length;
+  document.getElementById('s-sources').textContent=Object.values(state.sources).flat().filter(s=>s.active).length;
+  document.getElementById('s-x').textContent=Object.values(state.x).flat().filter(s=>s.active).length;
+  document.getElementById('s-recipients').textContent=state.recipients.digest.length;
+}
+
+// ══════════════════════════════════════════════════════
+// RECIPIENTS
+// ══════════════════════════════════════════════════════
+function renderRecipients(){
+  const box=document.getElementById('digest-recipients');
+  box.innerHTML=state.recipients.digest.map((e,i)=>
+    `<span class="recipient-tag">
+       ${e}
+       <button onclick="removeDigestRecipient(${i})" title="Supprimer">✕</button>
+     </span>`
+  ).join('');
+
+  const ebox=document.getElementById('extra-recipients');
+  ebox.innerHTML=state.recipients.extra.map((e,i)=>
+    `<span class="recipient-tag extra">
+       ${e}
+       <button onclick="removeExtraRecipient(${i})" title="Supprimer">✕</button>
+     </span>`
+  ).join('');
+
+  if(!state.recipients.extra.length)
+    ebox.innerHTML='<span style="color:var(--muted);font-size:10px;padding:4px">Aucun — les destinataires permanents seront utilisés</span>';
+
+  updateStats();
+}
+
+function addDigestRecipient(){
+  const inp=document.getElementById('new-digest-email');
+  const v=inp.value.trim();
+  if(!v||!v.includes('@')){toast('Email invalide','var(--red)');return}
+  if(state.recipients.digest.includes(v)){toast('Déjà dans la liste','var(--amber)');return}
+  state.recipients.digest.push(v);inp.value='';renderRecipients();toast('✓ Destinataire ajouté');
+}
+function removeDigestRecipient(i){
+  if(state.recipients.digest.length<=1){toast('Gardez au moins 1 destinataire','var(--amber)');return}
+  state.recipients.digest.splice(i,1);renderRecipients();
+}
+function addExtraRecipient(){
+  const inp=document.getElementById('new-extra-email');
+  const v=inp.value.trim();
+  if(!v||!v.includes('@')){toast('Email invalide','var(--red)');return}
+  state.recipients.extra.push(v);inp.value='';renderRecipients();toast('✓ Destinataire ponctuel ajouté');
+}
+function removeExtraRecipient(i){
+  state.recipients.extra.splice(i,1);renderRecipients();
+}
+
+// ══════════════════════════════════════════════════════
+// NOTIFICATION TYPE
+// ══════════════════════════════════════════════════════
+function selectType(type, el){
+  state.notifType=type;
+  document.querySelectorAll('.type-option').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  const ac=document.getElementById('alert-config');
+  ac.classList.toggle('show', type==='alert');
+  document.getElementById('send-label').textContent = type==='digest'?'Envoyer le digest complet':'Envoyer l\'alerte';
+}
+
+// ══════════════════════════════════════════════════════
+// GITHUB DISPATCH
+// ══════════════════════════════════════════════════════
+async function triggerDispatch(){
+  const token=document.getElementById('gh-token').value.trim();
+  const repo =document.getElementById('gh-repo').value.trim();
+
+  if(!token||!repo){toast('Token et dépôt requis','var(--amber)');return}
+
+  const allRecipients=[...state.recipients.digest,...state.recipients.extra];
+  const inputs={
+    notification_type: state.notifType,
+    recipients: allRecipients.join(',')
+  };
+
+  if(state.notifType==='alert'){
+    inputs.alert_subject=document.getElementById('alert-subject').value||'⚡ ALERTE OSINT';
+    inputs.alert_body_fr=document.getElementById('alert-body-fr').value||'';
+    inputs.alert_body_es=document.getElementById('alert-body-es').value||'';
+  }
+
+  const btn=document.getElementById('send-btn');
+  btn.disabled=true;
+  btn.querySelector('#send-label').textContent='Envoi en cours…';
+
+  try{
+    const res=await fetch(`https://api.github.com/repos/${repo}/actions/workflows/digest.yml/dispatches`,{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+      body:JSON.stringify({ref:'main',inputs})
+    });
+
+    const info=document.getElementById('dispatch-info');
+    info.style.display='block';
+
+    if(res.status===204){
+      info.style.background='rgba(0,230,118,.06)';
+      info.style.borderColor='rgba(0,230,118,.2)';
+      info.style.color='var(--green)';
+      info.innerHTML=`✓ Workflow déclenché avec succès !<br>
+        Type : <strong>${state.notifType==='digest'?'Digest complet':'Alerte rapide'}</strong><br>
+        Destinataires : <strong>${allRecipients.join(', ')}</strong><br>
+        <span style="opacity:.7">Vérifier l'onglet Actions de ton repo GitHub pour suivre l'exécution.</span>`;
+      toast('✓ Notification envoyée !');
+      state.recipients.extra=[];renderRecipients();
+    } else {
+      const err=await res.json().catch(()=>({}));
+      info.style.background='rgba(255,61,87,.06)';
+      info.style.borderColor='rgba(255,61,87,.2)';
+      info.style.color='var(--red)';
+      info.innerHTML=`✕ Erreur ${res.status} : ${err.message||'Vérifier le token et le nom du repo'}<br>
+        <span style="opacity:.7">Format repo : <code>username/osint-digest</code></span>`;
+      toast('Erreur — vérifier token/repo','var(--red)');
+    }
+  }catch(e){
+    toast('Erreur réseau : '+e.message,'var(--red)');
+  }
+
+  btn.disabled=false;
+  btn.querySelector('#send-label').textContent=state.notifType==='digest'?'Envoyer le digest complet':'Envoyer l\'alerte';
+}
+
+// ══════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════
+// SECTIONS
+// ══════════════════════════════════════════════════════
+function renderSections(){
+  const p=document.getElementById('panel-sections');
+  p.innerHTML=`<div style="margin-bottom:12px"><button class="btn btn-gr" onclick="addSection()">＋ Nouvelle section</button></div>`;
+  state.sections.sections.forEach((sec,i)=>{
+    const d=document.createElement('div');d.className='card';
+    d.innerHTML=`
+      <div class="card-head">
+        <div class="card-title">
+          <input type="text" value="${sec.emoji}" maxlength="4" style="width:36px;text-align:center;background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;font-size:18px;padding:0;" onchange="state.sections.sections[${i}].emoji=this.value">
+          <input type="text" value="${sec.title_fr}" style="width:160px;background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:2px 4px;font-family:var(--display);font-size:16px;font-weight:700;color:#fff;" onchange="state.sections.sections[${i}].title_fr=this.value;updateStats()">
+          <span style="color:var(--muted)">/</span>
+          <input type="text" value="${sec.title_es}" style="width:140px;background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:2px 4px;font-size:12px;color:var(--muted);" onchange="state.sections.sections[${i}].title_es=this.value">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${sec.active?'b-on':'b-off'}">${sec.active?'ON':'OFF'}</span>
+          <label class="toggle"><input type="checkbox" ${sec.active?'checked':''} onchange="state.sections.sections[${i}].active=this.checked;renderSections()"><span class="tog-sl"></span></label>
+          <button class="btn btn-d btn-sm" onclick="removeSection(${i})">✕</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <div class="field" style="margin:0;flex:0 0 60px"><div class="flabel">Nb infos</div>
+          <input type="number" value="${sec.items}" min="1" max="6" style="width:56px" onchange="state.sections.sections[${i}].items=+this.value"></div>
+        <div class="field" style="margin:0;flex:1;min-width:120px"><div class="flabel">Source key</div>
+          <select onchange="state.sections.sections[${i}].sources_key=this.value">
+            ${Object.keys(state.sources).map(k=>`<option value="${k}" ${sec.sources_key===k?'selected':''}>${k}</option>`).join('')}
+          </select></div>
+      </div>
+      <button class="expand-btn" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▼ Masquer prompts':'▶ Éditer les prompts'">▶ Éditer les prompts</button>
+      <div class="sec-body">
+        <div class="field"><div class="flabel">🇫🇷 Prompt FR</div>
+          <textarea rows="3" onchange="state.sections.sections[${i}].prompt_fr=this.value">${sec.prompt_fr}</textarea></div>
+        <div class="field"><div class="flabel">🇪🇸 Prompt ES</div>
+          <textarea rows="3" onchange="state.sections.sections[${i}].prompt_es=this.value">${sec.prompt_es}</textarea></div>
+        <p style="font-size:10px;color:var(--muted)">Variables : <code>{items}</code> · <code>{sources}</code></p>
+      </div>`;
+    p.appendChild(d);
+  });
+  updateStats();
+}
+
+function removeSection(i){if(!confirm('Supprimer ?'))return;state.sections.sections.splice(i,1);renderSections()}
+function addSection(){
+  state.sections.sections.push({id:'new_'+Date.now(),active:true,emoji:'📌',title_fr:'Nouvelle section',title_es:'Nueva sección',sources_key:'international',items:3,
+    prompt_fr:'Quelles sont les {items} informations les plus importantes des dernières 12h ? Sources : {sources}. Cite source et date.',
+    prompt_es:'¿Cuáles son las {items} noticias más importantes de las últimas 12h? Fuentes: {sources}. Cita fuente y fecha.'});
+  renderSections();
+}
+
+// ══════════════════════════════════════════════════════
+// SOURCES
+// ══════════════════════════════════════════════════════
+function renderSources(){
+  const p=document.getElementById('panel-sources');p.innerHTML='';
+  Object.entries(state.sources).forEach(([cat,srcs])=>{
+    const sec=state.sections.sections.find(s=>s.sources_key===cat);
+    const card=document.createElement('div');card.className='card';
+    card.innerHTML=`
+      <div class="card-head">
+        <div class="card-title">${sec?sec.emoji:'📰'} ${sec?sec.title_fr:cat}</div>
+        <button class="btn btn-gr btn-sm" onclick="addSource('${cat}')">＋</button>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Nom</th><th>URL</th><th>Lg</th><th style="text-align:center">Actif</th><th></th></tr></thead>
+        <tbody>${srcs.map((s,i)=>`
+          <tr>
+            <td><input type="text" value="${s.name}" style="width:130px" onchange="state.sources['${cat}'][${i}].name=this.value"></td>
+            <td><input type="text" value="${s.url}" style="width:190px" onchange="state.sources['${cat}'][${i}].url=this.value"></td>
+            <td><select style="width:60px" onchange="state.sources['${cat}'][${i}].lang=this.value">
+              ${['FR','EN','ES','DE','IT'].map(l=>`<option ${s.lang===l?'selected':''}>${l}</option>`).join('')}
+            </select></td>
+            <td style="text-align:center"><label class="toggle"><input type="checkbox" ${s.active?'checked':''} onchange="state.sources['${cat}'][${i}].active=this.checked;updateStats()"><span class="tog-sl"></span></label></td>
+            <td><button class="btn btn-d btn-sm" onclick="removeSource('${cat}',${i})">✕</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    p.appendChild(card);
+  });
+  updateStats();
+}
+
+function addSource(cat){state.sources[cat].push({name:'Nouveau',url:'',lang:'FR',active:true});renderSources()}
+function removeSource(cat,i){state.sources[cat].splice(i,1);renderSources()}
+
+// ══════════════════════════════════════════════════════
+// X ACCOUNTS
+// ══════════════════════════════════════════════════════
+function renderX(){
+  const p=document.getElementById('panel-xaccounts');
+  p.innerHTML=`<div style="background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:11px;color:#67e8f9;line-height:1.7">
+    📡 <strong>Signaux X via Nitter</strong> — Récupération des tweets publics sans API payante. Ces comptes enrichissent le contexte des résumés OSINT.</div>`;
+  Object.entries(state.x).forEach(([cat,accounts])=>{
+    const sec=state.sections.sections.find(s=>s.id===cat);
+    const card=document.createElement('div');card.className='card';
+    const on=accounts.filter(a=>a.active),off=accounts.filter(a=>!a.active);
+    card.innerHTML=`
+      <div class="card-head">
+        <div class="card-title">${sec?sec.emoji:'𝕏'} ${sec?sec.title_fr:cat}</div>
+        <span class="badge b-acc">${on.length} actif${on.length>1?'s':''}</span>
+      </div>
+      <div class="flabel">Actifs</div>
+      <div class="hlist">${on.map(a=>`<span class="hpill">@${a.handle}<button onclick="toggleHandle('${cat}','${a.handle}',false)" title="Désactiver">✕</button></span>`).join('')||'<span style="color:var(--muted);font-size:10px">Aucun</span>'}</div>
+      ${off.length?`<div class="flabel" style="margin-top:10px">Désactivés</div>
+      <div class="hlist">${off.map(a=>`<span class="hpill off">@${a.handle}<button onclick="toggleHandle('${cat}','${a.handle}',true)" title="Réactiver">＋</button></span>`).join('')}</div>`:''} 
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:flex-end">
+        <div style="flex:1"><div class="flabel">Ajouter @</div>
+          <input type="text" id="nh-${cat}" placeholder="nomducompte"></div>
+        <button class="btn btn-gr btn-sm" style="margin-bottom:1px" onclick="addHandle('${cat}')">＋</button>
+      </div>`;
+    p.appendChild(card);
+  });
+  updateStats();
+}
+
+function toggleHandle(cat,h,active){const a=state.x[cat].find(x=>x.handle===h);if(a){a.active=active;renderX()}}
+function addHandle(cat){
+  const inp=document.getElementById(`nh-${cat}`);
+  const h=inp.value.replace('@','').trim();
+  if(!h)return;
+  if(state.x[cat].find(a=>a.handle===h)){toast('Compte déjà présent','var(--amber)');return}
+  state.x[cat].push({handle:h,name:h,active:true,suggested:false});
+  inp.value='';renderX();toast('✓ Compte ajouté');
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════
+function openExport(){
+  document.getElementById('exp-recipients').textContent=JSON.stringify({digest:state.recipients.digest},null,2);
+  document.getElementById('exp-sources').textContent=JSON.stringify(state.sources,null,2);
+  document.getElementById('exp-sections').textContent=JSON.stringify(state.sections,null,2);
+  document.getElementById('exp-x').textContent=JSON.stringify(state.x,null,2);
+  document.getElementById('modal').classList.add('open');
+}
+function closeExport(){document.getElementById('modal').classList.remove('open')}
+function copyJSON(id,name){
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(()=>{
+    const el=document.getElementById(id);
+    el.classList.add('copied');setTimeout(()=>el.classList.remove('copied'),1500);
+    toast(`✓ ${name} copié !`);
+  });
+}
+function resetAll(){
+  if(!confirm('Réinitialiser toutes les données ?'))return;
+  location.reload();
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+renderRecipients();
+renderSections();
+renderSources();
+renderX();
+</script>
+</body>
+</html>
