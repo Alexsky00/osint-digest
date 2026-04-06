@@ -355,12 +355,12 @@ pre.jout.copied{border-color:var(--green)}
         <!-- GitHub Actions config -->
         <div class="gh-config">
           <label>🔑 GitHub Token (Personal Access Token)</label>
-          <input type="text" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          <input type="text" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" oninput="localStorage.setItem('gh_token',this.value)">
           <label>Dépôt GitHub (owner/repo)</label>
-          <input type="text" id="gh-repo" placeholder="monusername/osint-digest">
+          <input type="text" id="gh-repo" value="Alexsky00/osint-digest" oninput="localStorage.setItem('gh_repo',this.value)">
           <p class="gh-note">
             Le bouton déclenche le workflow GitHub Actions via l'API GitHub.<br>
-            Token requis : <strong>repo + workflow</strong> scope.<br>
+            Token requis : <strong>repo + workflow</strong> scope. Sauvegardé localement (jamais envoyé au serveur).<br>
             <a href="https://github.com/settings/tokens" target="_blank">→ Créer un token sur github.com/settings/tokens</a>
           </p>
         </div>
@@ -980,6 +980,11 @@ function refreshPreviewIfOpen(){
 // INIT
 // ══════════════════════════════════════════════════════
 (async()=>{
+  // Restaurer token depuis localStorage (jamais commité)
+  const savedToken=localStorage.getItem('gh_token');
+  const savedRepo=localStorage.getItem('gh_repo');
+  if(savedToken) document.getElementById('gh-token').value=savedToken;
+  if(savedRepo)  document.getElementById('gh-repo').value=savedRepo;
   // Charge recipients.json depuis le même dossier (docs/) au démarrage
   try{
     const res=await fetch('./recipients.json');
