@@ -9,7 +9,7 @@
       "title_fr": "International",
       "title_es": "Internacional",
       "sources_key": "international",
-      "items": 4,
+      "items": 6,
       "prompt_fr": "Quelles sont les {items} informations internationales les plus importantes des dernières 12 heures ? Couvre : géopolitique, conflits actifs, diplomatie, crises humanitaires, décisions de grandes institutions (ONU, OTAN, UE). Sources autorisées : {sources}. Cite obligatoirement la source exacte et la date pour chaque point.",
       "prompt_es": "¿Cuáles son las {items} noticias internacionales más importantes de las últimas 12 horas? Cubre: geopolítica, conflictos activos, diplomacia, crisis humanitarias, decisiones de grandes instituciones (ONU, OTAN, UE). Fuentes autorizadas: {sources}. Cita obligatoriamente la fuente exacta y la fecha para cada punto."
     },
@@ -20,7 +20,7 @@
       "title_fr": "Espagne",
       "title_es": "España",
       "sources_key": "espagne",
-      "items": 4,
+      "items": 6,
       "prompt_fr": "Quelles sont les {items} informations nationales espagnoles les plus importantes des dernières 12 heures ? Couvre : politique intérieure, économie nationale, société, régions autonomes, décisions gouvernementales. Sources autorisées : {sources}. Cite obligatoirement la source exacte et la date pour chaque point.",
       "prompt_es": "¿Cuáles son las {items} noticias nacionales españolas más importantes de las últimas 12 horas? Cubre: política interior, economía nacional, sociedad, comunidades autónomas, decisiones gubernamentales. Fuentes autorizadas: {sources}. Cita obligatoriamente la fuente exacta y la fecha para cada punto."
     },
@@ -31,7 +31,7 @@
       "title_fr": "France",
       "title_es": "Francia",
       "sources_key": "france",
-      "items": 4,
+      "items": 6,
       "prompt_fr": "Quelles sont les {items} informations nationales françaises les plus importantes des dernières 12 heures ? Couvre : politique intérieure, économie nationale, société, décisions gouvernementales, Assemblée nationale. Sources autorisées : {sources}. Cite obligatoirement la source exacte et la date pour chaque point.",
       "prompt_es": "¿Cuáles son las {items} noticias nacionales francesas más importantes de las últimas 12 horas? Cubre: política interior, economía nacional, sociedad, decisiones gubernamentales, Asamblea Nacional. Fuentes autorizadas: {sources}. Cita obligatoriamente la fuente exacta y la fecha para cada punto."
     },
@@ -42,7 +42,7 @@
       "title_fr": "Marchés financiers",
       "title_es": "Mercados financieros",
       "sources_key": "finances",
-      "items": 4,
+      "items": 6,
       "prompt_fr": "Quelles sont les {items} informations financières les plus importantes des dernières 12 heures ? Couvre : indices boursiers (IBEX 35, CAC 40, DAX, S&P 500), taux de change EUR/USD, prix des matières premières, décisions de banques centrales (BCE, Fed), résultats d'entreprises majeurs. Sources autorisées : {sources}. Inclue des chiffres précis quand disponibles.",
       "prompt_es": "¿Cuáles son las {items} informaciones financieras más importantes de las últimas 12 horas? Cubre: índices bursátiles (IBEX 35, CAC 40, DAX, S&P 500), tipo de cambio EUR/USD, precios de materias primas, decisiones de bancos centrales (BCE, Fed), resultados empresariales relevantes. Fuentes autorizadas: {sources}. Incluye cifras precisas cuando estén disponibles."
     },
@@ -53,7 +53,7 @@
       "title_fr": "Rail & Transport ferroviaire",
       "title_es": "Ferroviario & Transporte por tren",
       "sources_key": "rail",
-      "items": 4,
+      "items": 6,
       "prompt_fr": "Quelles sont les {items} informations business les plus importantes dans le secteur ferroviaire des dernières 12 ou 24 heures ? Couvre : opérateurs (SNCF, Renfe, DB, Eurostar, Trenitalia, Amtrak), appels d'offres, fusions-acquisitions, nouvelles lignes, incidents majeurs, régulation européenne. Sources autorisées : {sources}. Cite la source et la date.",
       "prompt_es": "¿Cuáles son las {items} noticias de negocio más importantes en el sector ferroviario de las últimas 12 o 24 horas? Cubre: operadores (SNCF, Renfe, DB, Eurostar, Trenitalia, Amtrak), licitaciones, fusiones y adquisiciones, nuevas líneas, incidentes mayores, regulación europea. Fuentes autorizadas: {sources}. Cita la fuente y la fecha."
     }
