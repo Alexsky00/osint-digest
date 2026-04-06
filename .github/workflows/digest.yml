@@ -36,9 +36,9 @@ on:
         required: false
         default: ""
       mail_enabled:
-        description: "Envoyer l'email (true/false)"
+        description: "Envoyer l'email (true/false). Vide = lit la variable MAIL_ENABLED du repo"
         required: false
-        default: "true"
+        default: ""
 
 jobs:
   send:
@@ -61,5 +61,5 @@ jobs:
           INPUT_ALERT_SUBJECT:  ${{ github.event.inputs.alert_subject || '⚡ ALERTE OSINT' }}
           INPUT_ALERT_BODY_FR:  ${{ github.event.inputs.alert_body_fr || '' }}
           INPUT_ALERT_BODY_ES:  ${{ github.event.inputs.alert_body_es || '' }}
-          INPUT_MAIL_ENABLED:   ${{ github.event.inputs.mail_enabled || 'true' }}
+          INPUT_MAIL_ENABLED:   ${{ github.event.inputs.mail_enabled || vars.MAIL_ENABLED || 'true' }}
         run: python digest.py

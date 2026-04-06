@@ -368,8 +368,8 @@ pre.jout.copied{border-color:var(--green)}
         <!-- Mail toggle -->
         <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:12px">
           <div>
-            <div style="font-size:12px;font-weight:700;color:#fff">📧 Envoi email</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">Désactiver pour tester sans envoyer</div>
+            <div style="font-size:12px;font-weight:700;color:#fff">📧 Envoi automatique</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Active/désactive les emails automatiques (cron 6h40 · 20h40)</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span id="mail-enabled-badge" class="badge b-on">ON</span>
@@ -697,12 +697,50 @@ async function triggerDispatch(){
 // ══════════════════════════════════════════════════════
 // MAIL TOGGLE
 // ══════════════════════════════════════════════════════
-function toggleMail(enabled){
+async function toggleMail(enabled){
   state.mailEnabled=enabled;
   const badge=document.getElementById('mail-enabled-badge');
   const val=document.getElementById('s-mail');
   if(badge){badge.textContent=enabled?'ON':'OFF';badge.className='badge '+(enabled?'b-on':'b-off')}
   if(val){val.textContent=enabled?'ON':'OFF';val.style.color=enabled?'var(--green)':'var(--red)'}
+  // Persister dans la variable GitHub Actions MAIL_ENABLED
+  const token=document.getElementById('gh-token').value.trim();
+  const repo=document.getElementById('gh-repo').value.trim();
+  if(!token||!repo){toast('Token requis pour sauvegarder sur GitHub','var(--amber)');return}
+  try{
+    // Essai PATCH (update), puis POST (create) si 404
+    const body=JSON.stringify({name:'MAIL_ENABLED',value:enabled?'true':'false'});
+    const headers={'Authorization':`Bearer ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'};
+    let res=await fetch(`https://api.github.com/repos/${repo}/actions/variables/MAIL_ENABLED`,{method:'PATCH',headers,body});
+    if(res.status===404){
+      res=await fetch(`https://api.github.com/repos/${repo}/actions/variables`,{method:'POST',headers,body});
+    }
+    if(res.ok||res.status===204){
+      toast('✓ Envoi automatique '+(enabled?'activé':'désactivé')+' sur GitHub');
+    }else{
+      const err=await res.json().catch(()=>({}));
+      toast('Erreur GitHub : '+(err.message||res.status),'var(--red)');
+    }
+  }catch(e){toast('Erreur réseau : '+e.message,'var(--red)')}
+}
+
+async function loadMailEnabledFromGithub(token,repo){
+  if(!token||!repo)return;
+  try{
+    const res=await fetch(`https://api.github.com/repos/${repo}/actions/variables/MAIL_ENABLED`,{
+      headers:{'Authorization':`Bearer ${token}`,'Accept':'application/vnd.github.v3+json'}
+    });
+    if(res.ok){
+      const data=await res.json();
+      const enabled=data.value!=='false';
+      state.mailEnabled=enabled;
+      document.getElementById('mail-enabled-chk').checked=enabled;
+      const badge=document.getElementById('mail-enabled-badge');
+      const val=document.getElementById('s-mail');
+      if(badge){badge.textContent=enabled?'ON':'OFF';badge.className='badge '+(enabled?'b-on':'b-off')}
+      if(val){val.textContent=enabled?'ON':'OFF';val.style.color=enabled?'var(--green)':'var(--red)'}
+    }
+  }catch(_){}
 }
 
 // ══════════════════════════════════════════════════════
@@ -985,6 +1023,9 @@ function refreshPreviewIfOpen(){
   const savedRepo=localStorage.getItem('gh_repo');
   if(savedToken) document.getElementById('gh-token').value=savedToken;
   if(savedRepo)  document.getElementById('gh-repo').value=savedRepo;
+  // Charger l'état MAIL_ENABLED depuis la variable GitHub Actions
+  const initRepo=savedRepo||document.getElementById('gh-repo').value;
+  await loadMailEnabledFromGithub(savedToken,initRepo);
   // Charge recipients.json depuis le même dossier (docs/) au démarrage
   try{
     const res=await fetch('./recipients.json');
