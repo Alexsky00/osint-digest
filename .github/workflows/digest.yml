@@ -1,0 +1,65 @@
+name: OSINT Daily Digest
+
+on:
+  schedule:
+    - cron: '40 4 * * *'    # 6h40 Madrid (heure d'été UTC+2)
+    - cron: '40 18 * * *'   # 20h40 Madrid (heure d'été UTC+2)
+    # ► HIVER (fin oct → fin mars) : commenter les 2 lignes ci-dessus
+    # et décommenter :
+    # - cron: '40 5 * * *'
+    # - cron: '40 19 * * *'
+
+  workflow_dispatch:
+    inputs:
+      type:
+        description: "Type d'envoi"
+        required: true
+        default: digest
+        type: choice
+        options:
+          - digest
+          - alert
+      recipients:
+        description: "Destinataires (séparés par virgule). Vide = recipients.json"
+        required: false
+        default: ""
+      alert_subject:
+        description: "[Alerte] Sujet de l'email"
+        required: false
+        default: "⚡ ALERTE OSINT"
+      alert_body_fr:
+        description: "[Alerte] Message en français"
+        required: false
+        default: ""
+      alert_body_es:
+        description: "[Alerte] Message en espagnol"
+        required: false
+        default: ""
+      mail_enabled:
+        description: "Envoyer l'email (true/false)"
+        required: false
+        default: "true"
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 🛰️ Lancer le digest
+        env:
+          TAVILY_API_KEY:     ${{ secrets.TAVILY_API_KEY }}
+          GROQ_API_KEY:       ${{ secrets.GROQ_API_KEY }}
+          GMAIL_USER:         ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          INPUT_TYPE:           ${{ github.event.inputs.type || 'digest' }}
+          INPUT_RECIPIENTS:     ${{ github.event.inputs.recipients || '' }}
+          INPUT_ALERT_SUBJECT:  ${{ github.event.inputs.alert_subject || '⚡ ALERTE OSINT' }}
+          INPUT_ALERT_BODY_FR:  ${{ github.event.inputs.alert_body_fr || '' }}
+          INPUT_ALERT_BODY_ES:  ${{ github.event.inputs.alert_body_es || '' }}
+          INPUT_MAIL_ENABLED:   ${{ github.event.inputs.mail_enabled || 'true' }}
+        run: python digest.py

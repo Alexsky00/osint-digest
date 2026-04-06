@@ -1,0 +1,47 @@
+{
+  "_comment": "Comptes X (Twitter) suivis par thème. active:false = ignoré. suggested:true = suggéré par défaut, tu peux en ajouter d'autres.",
+
+  "international": [
+    { "handle": "Reuters",         "name": "Reuters",              "active": true,  "suggested": true },
+    { "handle": "AP",              "name": "Associated Press",     "active": true,  "suggested": true },
+    { "handle": "BBCWorld",        "name": "BBC World News",       "active": true,  "suggested": true },
+    { "handle": "AJEnglish",       "name": "Al Jazeera English",   "active": true,  "suggested": true },
+    { "handle": "UN",              "name": "United Nations",       "active": false, "suggested": true },
+    { "handle": "NATO",            "name": "NATO",                 "active": false, "suggested": true }
+  ],
+
+  "espagne": [
+    { "handle": "el_pais",         "name": "El País",              "active": true,  "suggested": true },
+    { "handle": "elmundoes",       "name": "El Mundo",             "active": true,  "suggested": true },
+    { "handle": "LaVanguardia",    "name": "La Vanguardia",        "active": true,  "suggested": true },
+    { "handle": "RTVE",            "name": "RTVE",                 "active": true,  "suggested": true },
+    { "handle": "sanchezcastejon", "name": "Pedro Sánchez",        "active": false, "suggested": true },
+    { "handle": "Congreso_es",     "name": "Congreso de los Diputados", "active": false, "suggested": true }
+  ],
+
+  "france": [
+    { "handle": "lemondefr",       "name": "Le Monde",             "active": true,  "suggested": true },
+    { "handle": "le_Figaro",       "name": "Le Figaro",            "active": true,  "suggested": true },
+    { "handle": "franceinfo",      "name": "France Info",          "active": true,  "suggested": true },
+    { "handle": "LesEchos",        "name": "Les Echos",            "active": true,  "suggested": true },
+    { "handle": "Elysee",          "name": "Élysée",               "active": false, "suggested": true },
+    { "handle": "gouvernementFR",  "name": "Gouvernement FR",      "active": false, "suggested": true }
+  ],
+
+  "finances": [
+    { "handle": "Bloomberg",       "name": "Bloomberg",            "active": true,  "suggested": true },
+    { "handle": "FinancialTimes",  "name": "Financial Times",      "active": true,  "suggested": true },
+    { "handle": "markets",         "name": "Reuters Markets",      "active": true,  "suggested": true },
+    { "handle": "WSJ",             "name": "Wall Street Journal",  "active": false, "suggested": true },
+    { "handle": "ECB",             "name": "Banque Centrale Européenne", "active": true, "suggested": true }
+  ],
+
+  "rail": [
+    { "handle": "railwaygazette",  "name": "Railway Gazette",      "active": true,  "suggested": true },
+    { "handle": "SNCF",            "name": "SNCF",                 "active": true,  "suggested": true },
+    { "handle": "Renfe",           "name": "Renfe",                "active": true,  "suggested": true },
+    { "handle": "DB_Bahn",         "name": "Deutsche Bahn",        "active": true,  "suggested": true },
+    { "handle": "Eurostar",        "name": "Eurostar",             "active": false, "suggested": true },
+    { "handle": "uic_rail",        "name": "UIC Rail",             "active": true,  "suggested": true }
+  ]
+}
