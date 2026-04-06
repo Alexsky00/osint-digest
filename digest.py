@@ -198,19 +198,11 @@ def groq_summarize(context: str, section: dict, lang: str) -> str:
     title      = section[f"title_{lang}"]
     prompt_key = f"prompt_{lang}"
     today      = datetime.now().strftime("%d/%m/%Y")
-    user_msg   = (
-        f'Nous sommes le {today}. Voici les informations web disponibles sur le thème "{title}" (48 dernières heures).
-
-'
-        f'--- SOURCES WEB ---
-{context}
-
----
-'
-        f'MISSION : Sélectionne les {n} faits les plus notables publiés AUJOURD\'HUI ou HIER ({today}).
-'
-        f'Commence directement par "1." sans introduction.
-'
+    user_msg = (
+        f'Nous sommes le {today}. Voici les informations web disponibles sur le thème "{title}" (48 dernières heures).\n\n'
+        f'--- SOURCES WEB ---\n{context}\n\n---\n'
+        f'MISSION : Sélectionne les {n} faits les plus notables publiés AUJOURD\'HUI ou HIER ({today}).\n'
+        f'Commence directement par "1." sans introduction.\n'
         + section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources ci-dessus')
     )
     return _groq_call([
@@ -227,18 +219,10 @@ def groq_summarize_x(x_signals: str, section: dict, lang: str) -> str:
     title = section[f"title_{lang}"]
     today = datetime.now().strftime("%d/%m/%Y")
     user_msg = (
-        f'Nous sommes le {today}. Voici des signaux X/Twitter sur le thème "{title}".
-
-'
-        f'--- SIGNAUX X ---
-{x_signals}
-
----
-'
-        f'MISSION : Sélectionne les {n} signaux les plus notables et factuels.
-'
-        f'Chaque point : 1-2 phrases max → [Source: @compte]
-'
+        f'Nous sommes le {today}. Voici des signaux X/Twitter sur le thème "{title}".\n\n'
+        f'--- SIGNAUX X ---\n{x_signals}\n\n---\n'
+        f'MISSION : Sélectionne les {n} signaux les plus notables et factuels.\n'
+        f'Chaque point : 1-2 phrases max → [Source: @compte]\n'
         f'Commence directement par "1.". Aucune intro ni conclusion.'
     )
     system_x = (
@@ -333,8 +317,7 @@ def fetch_digest_content(sections_cfg, sources, x_accounts):
         es_web = groq_summarize(context, sec, "es")
         time.sleep(0.5)
 
-        x_str = "
-".join(xs) if isinstance(xs, list) else xs
+        x_str = "\n".join(xs) if isinstance(xs, list) else xs
         print(f"  🤖 [{sid}] Groq X FR/ES ({len(xs) if isinstance(xs, list) else 0} signaux)...")
         fr_x = groq_summarize_x(x_str, sec, "fr") if xs else ""
         time.sleep(0.5)
