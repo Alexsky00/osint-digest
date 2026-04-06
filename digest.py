@@ -157,47 +157,15 @@ def build_tavily_query(section: dict, sources: dict, lang: str) -> tuple[str, li
 
 # ── GROQ : LLM gratuit ────────────────────────────────────────────────────────
 
-def groq_summarize(context: str, section: dict, lang: str, x_signals: str = "", _retry: int = 0) -> str:
-    """
-    Envoie le contexte Tavily + signaux X à Groq pour générer le résumé.
-    Modèle gratuit llama-3.1-8b-instant : 14 400 req/jour.
-    """
-    n      = section["items"]
-    title  = section[f"title_{lang}"]
-    prompt_key = f"prompt_{lang}"
-
-    # Prompt unifié : web + X sur un pied d'égalité, sélection éditoriale par Groq
-    x_block = f"""\n--- SIGNAUX X/TWITTER ---\n{x_signals}""" if x_signals else ""
-
-    today = datetime.now().strftime("%d/%m/%Y")
-    user_msg = f"""Nous sommes le {today}. Voici les informations disponibles sur le thème "{title}" publiées dans les dernières 48h.
-Elles proviennent de sources web ET de comptes X — traite-les sans distinction de provenance.
-
---- SOURCES WEB ---
-{context}{x_block}
-
----
-MISSION : Parmi toutes ces informations, sélectionne les {n} faits les plus notables et significatifs
-publiés AUJOURD'HUI ou HIER ({today}). Privilégie les événements à fort impact, les ruptures, les décisions majeures.
-Ignore les doublons (même fait, plusieurs sources = cite la plus fiable).
-Commence directement par "1." sans introduction.
-{section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources et signaux ci-dessus')}
-"""
-
+def _groq_call(messages: list, max_tokens: int = 800, _retry: int = 0) -> str:
+    """Helper HTTP Groq avec retry 429/403."""
     payload = json.dumps({
-        "model":       GROQ_MODEL,
-        "max_tokens":  600,
-        "temperature": 0.1,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": user_msg}
-        ]
+        "model": GROQ_MODEL, "max_tokens": max_tokens, "temperature": 0.1,
+        "messages": messages
     }).encode("utf-8")
-
     req = urllib.request.Request(
         "https://api.groq.com/openai/v1/chat/completions",
-        data=payload,
-        method="POST",
+        data=payload, method="POST",
         headers={
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type":  "application/json",
@@ -212,16 +180,80 @@ Commence directement par "1." sans introduction.
         if e.code == 429:
             print("  ⏳ Rate limit Groq — pause 60s...")
             time.sleep(60)
-            return groq_summarize(context, section, lang, x_signals, _retry)
+            return _groq_call(messages, max_tokens, _retry)
         if e.code == 403 and _retry < 3:
             detail = "1010 Cloudflare block" if "1010" in body else "accès refusé"
             wait = 30 * (2 ** _retry)
             print(f"  ⚠️  Groq 403 ({detail}) — retry {_retry+1}/3 dans {wait}s...")
             time.sleep(wait)
-            return groq_summarize(context, section, lang, x_signals, _retry + 1)
+            return _groq_call(messages, max_tokens, _retry + 1)
         return f"⚠️ Erreur Groq {e.code} : {body[:200]}"
     except Exception as e:
         return f"⚠️ Erreur Groq : {e}"
+
+
+def groq_summarize(context: str, section: dict, lang: str) -> str:
+    """Résumé des sources WEB (Tavily) — {section[items]} items."""
+    n          = section["items"]
+    title      = section[f"title_{lang}"]
+    prompt_key = f"prompt_{lang}"
+    today      = datetime.now().strftime("%d/%m/%Y")
+    user_msg   = (
+        f'Nous sommes le {today}. Voici les informations web disponibles sur le thème "{title}" (48 dernières heures).
+
+'
+        f'--- SOURCES WEB ---
+{context}
+
+---
+'
+        f'MISSION : Sélectionne les {n} faits les plus notables publiés AUJOURD\'HUI ou HIER ({today}).
+'
+        f'Commence directement par "1." sans introduction.
+'
+        + section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources ci-dessus')
+    )
+    return _groq_call([
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": user_msg}
+    ])
+
+
+def groq_summarize_x(x_signals: str, section: dict, lang: str) -> str:
+    """Résumé des signaux X/Twitter — {section[items]} items."""
+    if not x_signals.strip():
+        return ""
+    n     = section["items"]
+    title = section[f"title_{lang}"]
+    today = datetime.now().strftime("%d/%m/%Y")
+    user_msg = (
+        f'Nous sommes le {today}. Voici des signaux X/Twitter sur le thème "{title}".
+
+'
+        f'--- SIGNAUX X ---
+{x_signals}
+
+---
+'
+        f'MISSION : Sélectionne les {n} signaux les plus notables et factuels.
+'
+        f'Chaque point : 1-2 phrases max → [Source: @compte]
+'
+        f'Commence directement par "1.". Aucune intro ni conclusion.'
+    )
+    system_x = (
+        "Tu es un analyste OSINT. Règles : "
+        "1. Sélectionne uniquement les signaux les plus notables. "
+        "2. Chaque point : 1-2 phrases, factuel. "
+        "3. Termine par → [Source: @compte] "
+        "4. N'utilise que les infos présentes dans les tweets. "
+        "5. N'invente aucun fait ni date."
+    )
+    return _groq_call([
+        {"role": "system", "content": system_x},
+        {"role": "user",   "content": user_msg}
+    ])
+
 
 
 # ── NITTER : signaux X ────────────────────────────────────────────────────────
@@ -245,7 +277,7 @@ class TweetParser(HTMLParser):
         if self._in: self._buf.append(data.strip())
 
 
-def fetch_nitter(handle, max_t=2):
+def fetch_nitter(handle, max_t=4):
     for base in NITTER_INSTANCES:
         try:
             req = urllib.request.Request(
@@ -269,13 +301,13 @@ def fetch_x_signals(x_accounts, section_id):
     handles = active_handles(x_accounts, section_id)
     if not handles: return ""
     signals = []
-    for h in handles[:6]:           # jusqu'à 6 comptes par section
-        for t in fetch_nitter(h, 3):  # jusqu'à 3 tweets par compte
+    for h in handles[:8]:           # jusqu'à 8 comptes par section
+        for t in fetch_nitter(h, 4):  # jusqu'à 4 tweets par compte
             clean = re.sub(r"\s+", " ", re.sub(r"http\S+", "", t)).strip()
             if len(clean) > 40:
                 signals.append(f"@{h}: {clean[:250]}")
         time.sleep(0.3)
-    return "\n".join(signals[:12])  # jusqu'à 12 signaux au total
+    return signals[:18]  # retourne une liste de 18 signaux max
 
 
 # ── FETCH DIGEST ──────────────────────────────────────────────────────────────
@@ -295,18 +327,26 @@ def fetch_digest_content(sections_cfg, sources, x_accounts):
         context = tavily_search(query, domains)
         time.sleep(1)  # politesse API
 
-        print(f"  🤖 [{sid}] Groq FR...")
-        fr = groq_summarize(context, sec, "fr", xs)
+        print(f"  🤖 [{sid}] Groq WEB FR/ES...")
+        fr_web = groq_summarize(context, sec, "fr")
+        time.sleep(0.5)
+        es_web = groq_summarize(context, sec, "es")
         time.sleep(0.5)
 
-        print(f"  🤖 [{sid}] Groq ES...")
-        es = groq_summarize(context, sec, "es", xs)
+        x_str = "
+".join(xs) if isinstance(xs, list) else xs
+        print(f"  🤖 [{sid}] Groq X FR/ES ({len(xs) if isinstance(xs, list) else 0} signaux)...")
+        fr_x = groq_summarize_x(x_str, sec, "fr") if xs else ""
+        time.sleep(0.5)
+        es_x = groq_summarize_x(x_str, sec, "es") if xs else ""
         time.sleep(0.5)
 
         results[sid] = {
             "section":   sec,
-            "fr":        fr,
-            "es":        es,
+            "fr_web":    fr_web,
+            "es_web":    es_web,
+            "fr_x":      fr_x,
+            "es_x":      es_x,
             "x_handles": active_handles(x_accounts, sid)
         }
 
@@ -354,7 +394,15 @@ def render_x_badges(handles):
             f'<span style="font-size:10px;color:#aaa">📡 </span>{pills}</div>')
 
 
-def render_section_block(section, content, color, title_key, handles):
+def render_section_block(section, content_web, content_x, color, title_key):
+    web_items = render_items(content_web)
+    x_items   = render_items(content_x)
+    x_block   = (
+        f'<div style="margin-top:10px;padding-top:8px;border-top:1px solid #e8edf5">' 
+        f'<div style="font-size:9px;font-weight:700;color:#1d9bf0;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">𝕏 Signaux X/Twitter</div>'
+        f'<ol style="margin:0;padding-left:16px">{x_items}</ol>'
+        f'</div>'
+    ) if x_items else ""
     return f"""
 <div style="margin-bottom:16px;border-radius:7px;overflow:hidden;box-shadow:0 1px 5px rgba(0,0,0,.07)">
   <div style="background:{color};padding:10px 16px;display:flex;align-items:center;gap:8px">
@@ -362,15 +410,16 @@ def render_section_block(section, content, color, title_key, handles):
     <span style="color:#fff;font-weight:700;font-size:13.5px">{section[title_key]}</span>
   </div>
   <div style="background:#fff;padding:10px 16px 8px">
-    <ol style="margin:0;padding-left:16px">{render_items(content)}</ol>
-    {render_x_badges(handles)}
+    <div style="font-size:9px;font-weight:700;color:#555;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">📰 Sources web</div>
+    <ol style="margin:0;padding-left:16px">{web_items}</ol>
+    {x_block}
   </div>
 </div>"""
 
 
 def render_lang_block(results, lang, header, date_str, bg):
     sections_html = "".join(
-        render_section_block(d["section"], d[lang], PALETTE[i % len(PALETTE)], f"title_{lang}", d["x_handles"])
+        render_section_block(d["section"], d[f"{lang}_web"], d[f"{lang}_x"], PALETTE[i % len(PALETTE)], f"title_{lang}")
         for i, (_, d) in enumerate(results.items())
     )
     return f"""
