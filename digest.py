@@ -48,9 +48,11 @@ Règles strictes :
 3. Chaque point : 2 phrases max, factuel, zéro opinion ni spéculation.
 4. Chaque point se termine par → [Source: NomMédia ou @compte, JJ/MM/AAAA]
 5. Si plusieurs sources confirment un fait, cite la plus fiable (média > compte X).
-6. Si l'information est absente du contexte : "Non disponible dans les sources à cette heure."
-7. Format : liste numérotée. Aucune intro ni conclusion.
-8. N'invente jamais de source ni de fait."""
+6. DATES : utilise UNIQUEMENT les dates présentes dans les sources fournies. N'utilise jamais une date
+   issue de ta mémoire ou de ton entraînement. Si une source ne mentionne pas de date, ne cite pas de date.
+7. Si l'information est absente du contexte : "Non disponible dans les sources à cette heure."
+8. Format : liste numérotée SANS texte d'introduction ni conclusion. Commence directement par "1.".
+9. N'invente jamais de source ni de fait."""
 
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -98,6 +100,7 @@ def tavily_search(query: str, domains: list[str] = None) -> str:
         "max_results":         8,        # plus de résultats = meilleure sélection
         "include_answer":      False,
         "include_raw_content": False,
+        "days":                2,        # uniquement les 48 dernières heures
     }
     if domains:
         payload["include_domains"] = domains[:15]
@@ -166,7 +169,8 @@ def groq_summarize(context: str, section: dict, lang: str, x_signals: str = "", 
     # Prompt unifié : web + X sur un pied d'égalité, sélection éditoriale par Groq
     x_block = f"""\n--- SIGNAUX X/TWITTER ---\n{x_signals}""" if x_signals else ""
 
-    user_msg = f"""Voici l'ensemble des informations disponibles sur le thème "{title}" pour les dernières 24h.
+    today = datetime.now().strftime("%d/%m/%Y")
+    user_msg = f"""Nous sommes le {today}. Voici les informations disponibles sur le thème "{title}" publiées dans les dernières 48h.
 Elles proviennent de sources web ET de comptes X — traite-les sans distinction de provenance.
 
 --- SOURCES WEB ---
@@ -174,8 +178,9 @@ Elles proviennent de sources web ET de comptes X — traite-les sans distinction
 
 ---
 MISSION : Parmi toutes ces informations, sélectionne les {n} faits les plus notables et significatifs
-du moment pour ce thème. Privilégie les événements à fort impact, les ruptures, les décisions majeures.
+publiés AUJOURD'HUI ou HIER ({today}). Privilégie les événements à fort impact, les ruptures, les décisions majeures.
 Ignore les doublons (même fait, plusieurs sources = cite la plus fiable).
+Commence directement par "1." sans introduction.
 {section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources et signaux ci-dessus')}
 """
 
@@ -315,6 +320,10 @@ def render_items(content):
     for line in content.split("\n"):
         line = line.strip()
         if not line: continue
+        # Supprimer numérotation Groq ("1. ", "2. " etc.) — le <ol> gère l'affichage
+        line = re.sub(r'^\d+[\.\)]\s*', '', line)
+        # Ignorer les lignes d'intro/conclusion sans citation de source
+        if not line: continue
         if "[Source:" in line:
             idx    = line.index("[Source:")
             body   = line[:idx].rstrip(" →")
@@ -326,6 +335,9 @@ def render_items(content):
                 f'</li>'
             )
         else:
+            # Exclure les phrases d'intro sans source (ex : "Voici les N informations…")
+            if len(line) < 30 or line.endswith(":") or line.lower().startswith(("voici", "voilà", "aquí", "estas son")):
+                continue
             out.append(
                 f'<li style="margin-bottom:10px;font-size:13px;line-height:1.65;color:#1a1a2e">{line}</li>'
             )
