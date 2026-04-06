@@ -32,9 +32,14 @@ _logo_path = BASE_DIR / "docs" / "logo.png"
 LOGO_B64   = base64.b64encode(_logo_path.read_bytes()).decode() if _logo_path.exists() else ""
 
 NITTER_INSTANCES = [
-    "https://nitter.net",
-    "https://nitter.privacydev.net",
     "https://nitter.poast.org",
+    "https://nitter.privacydev.net",
+    "https://nitter.net",
+    "https://nitter.1d4.us",
+    "https://nitter.kavin.rocks",
+    "https://nitter.unixfox.eu",
+    "https://nitter.projectsegfau.lt",
+    "https://n.l5.ca",
 ]
 
 GROQ_MODEL = "llama-3.1-8b-instant"   # Modèle gratuit, rapide, 14 400 req/jour
@@ -201,14 +206,14 @@ def groq_summarize(context: str, section: dict, lang: str) -> str:
     user_msg = (
         f'Nous sommes le {today}. Voici les informations web disponibles sur le thème "{title}" (48 dernières heures).\n\n'
         f'--- SOURCES WEB ---\n{context}\n\n---\n'
-        f'MISSION : Sélectionne les {n} faits les plus notables publiés AUJOURD\'HUI ou HIER ({today}).\n'
-        f'Commence directement par "1." sans introduction.\n'
+        f'MISSION : Rédige EXACTEMENT {n} points numérotés (ni plus, ni moins), faits les plus notables publiés AUJOURD\'HUI ou HIER ({today}).\n'
+        f'Commence directement par "1." sans introduction ni conclusion.\n'
         + section[prompt_key].replace('{items}', str(n)).replace('{sources}', 'les sources ci-dessus')
     )
     return _groq_call([
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user",   "content": user_msg}
-    ])
+    ], max_tokens=1200)
 
 
 def groq_summarize_x(x_signals: str, section: dict, lang: str) -> str:
@@ -221,7 +226,7 @@ def groq_summarize_x(x_signals: str, section: dict, lang: str) -> str:
     user_msg = (
         f'Nous sommes le {today}. Voici des signaux X/Twitter sur le thème "{title}".\n\n'
         f'--- SIGNAUX X ---\n{x_signals}\n\n---\n'
-        f'MISSION : Sélectionne les {n} signaux les plus notables et factuels.\n'
+        f'MISSION : Rédige EXACTEMENT {n} points numérotés (ni plus, ni moins), signaux les plus notables et factuels.\n'
         f'Chaque point : 1-2 phrases max → [Source: @compte]\n'
         f'Commence directement par "1.". Aucune intro ni conclusion.'
     )
@@ -236,7 +241,7 @@ def groq_summarize_x(x_signals: str, section: dict, lang: str) -> str:
     return _groq_call([
         {"role": "system", "content": system_x},
         {"role": "user",   "content": user_msg}
-    ])
+    ], max_tokens=1200)
 
 
 
@@ -277,21 +282,33 @@ def fetch_nitter(handle, max_t=4):
     return []
 
 
-def fetch_x_signals(x_accounts, section_id):
+def fetch_x_signals(x_accounts, section_id, section=None, sources=None):
     """
-    Collecte les tweets récents. On prend plus de comptes et plus de tweets
-    pour donner à Groq plus de matière à sélectionner.
+    Collecte les tweets via Nitter. Si Nitter échoue, fallback Tavily sur twitter.com/x.com.
     """
     handles = active_handles(x_accounts, section_id)
-    if not handles: return ""
+    if not handles:
+        return []
     signals = []
-    for h in handles[:8]:           # jusqu'à 8 comptes par section
-        for t in fetch_nitter(h, 4):  # jusqu'à 4 tweets par compte
+    for h in handles[:8]:
+        for t in fetch_nitter(h, 4):
             clean = re.sub(r"\s+", " ", re.sub(r"http\S+", "", t)).strip()
             if len(clean) > 40:
                 signals.append(f"@{h}: {clean[:250]}")
         time.sleep(0.3)
-    return signals[:18]  # retourne une liste de 18 signaux max
+
+    # Fallback Tavily si Nitter n'a rien retourné
+    if not signals and section and sources:
+        print(f"  ⚠️  Nitter vide pour [{section_id}] — fallback Tavily X...")
+        query, _ = build_tavily_query(section, sources, "fr")
+        x_ctx = tavily_search(query, ["twitter.com", "x.com"])
+        if x_ctx and "Aucun résultat" not in x_ctx and "Erreur" not in x_ctx:
+            for line in x_ctx.split("\n\n"):
+                line = line.strip()
+                if len(line) > 40:
+                    signals.append(line[:300])
+
+    return signals[:18]
 
 
 # ── FETCH DIGEST ──────────────────────────────────────────────────────────────
@@ -304,7 +321,7 @@ def fetch_digest_content(sections_cfg, sources, x_accounts):
         sid = sec["id"]
 
         print(f"  🔍 [{sid}] Signaux X...")
-        xs = fetch_x_signals(x_accounts, sid)
+        xs = fetch_x_signals(x_accounts, sid, section=sec, sources=sources)
 
         print(f"  🌐 [{sid}] Tavily search...")
         query, domains = build_tavily_query(sec, sources, "fr")
